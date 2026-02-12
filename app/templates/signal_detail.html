@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h4>信号详情 #{{ signal.id }}</h4>
+<div class="mb-3">
+  <div><strong>接收时间(UTC):</strong> {{ signal.received_at }}</div>
+  <div><strong>来源:</strong> {{ signal.source or '-' }}</div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">解析字段</div>
+  <div class="card-body">
+    {% for k, v in parsed_fields.items() %}
+    <div><code>{{ k }}</code> = <code>{{ v }}</code></div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">原始载荷</div>
+  <div class="card-body"><pre class="mb-0">{{ signal.raw_payload }}</pre></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">转发记录</div>
+  <div class="card-body">
+    <table class="table table-bordered table-sm">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>目标（脱敏）</th>
+          <th>状态码</th>
+          <th>成功</th>
+          <th>错误</th>
+          <th>时间(UTC)</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in deliveries %}
+        <tr>
+          <td>{{ d.id }}</td>
+          <td><code>{{ d.target_masked }}</code></td>
+          <td>{{ d.response_status or '-' }}</td>
+          <td>{{ 'Y' if d.success else 'N' }}</td>
+          <td>{{ d.error_message or '-' }}</td>
+          <td>{{ d.created_at }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<a class="btn btn-outline-secondary" href="/admin/signals">返回列表</a>
+{% endblock %}

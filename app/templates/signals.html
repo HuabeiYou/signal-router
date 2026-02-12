@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h4 class="mb-3">历史信号（最近200条）</h4>
+<table class="table table-bordered table-sm align-middle">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>时间(UTC)</th>
+      <th>来源</th>
+      <th>命中规则</th>
+      <th>转发次数</th>
+      <th>详情</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in signals %}
+    <tr>
+      <td>{{ s.id }}</td>
+      <td>{{ s.received_at }}</td>
+      <td>{{ s.source or '-' }}</td>
+      <td>{{ s.match_count }}</td>
+      <td>{{ s.delivery_count }}</td>
+      <td><a class="btn btn-sm btn-outline-primary" href="/admin/signals/{{ s.id }}">查看</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
