@@ -14,6 +14,7 @@
           <a class="btn btn-sm btn-outline-primary" href="/admin/rules">规则</a>
           <a class="btn btn-sm btn-outline-primary" href="/admin/signals">历史信号</a>
           <form method="post" action="/admin/logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="btn btn-sm btn-outline-danger" type="submit">退出</button>
           </form>
         </div>

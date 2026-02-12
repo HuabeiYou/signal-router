@@ -1,6 +1,8 @@
 import json
+import hmac
 from datetime import datetime
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
@@ -14,27 +16,69 @@ from app.models import Delivery, Rule, Signal
 from app.parser import parse_signal_fields
 from app.rules import match_rule
 from app.security import (
+    build_csrf_token,
     build_session_token,
     decrypt_text,
     encrypt_text,
     mask_webhook,
     parse_session_token,
+    verify_csrf_token,
 )
 
 app = FastAPI(title="Signal Router")
 templates = Jinja2Templates(directory="app/templates")
+DEFAULT_SECRETS = {"change-me-token", "change-me-password", "change-me-session-secret"}
+ALLOWED_WEBHOOK_HOSTS = {"qyapi.weixin.qq.com"}
+
+
+@app.middleware("http")
+async def set_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:;"
+    )
+    return response
 
 
 @app.on_event("startup")
 def on_startup() -> None:
+    if settings.app_env == "prod":
+        if (
+            settings.inbound_token in DEFAULT_SECRETS
+            or settings.admin_password in DEFAULT_SECRETS
+            or settings.session_secret in DEFAULT_SECRETS
+            or not settings.fernet_key
+        ):
+            raise RuntimeError("Refusing to start in prod with insecure default secrets")
+    if not settings.inbound_token:
+        raise RuntimeError("INBOUND_TOKEN must not be empty")
     init_db()
 
 
-def require_admin(request: Request) -> None:
+def _get_admin_username(request: Request) -> Optional[str]:
     token = request.cookies.get("admin_session")
-    username = parse_session_token(token) if token else None
+    return parse_session_token(token) if token else None
+
+
+def require_admin(request: Request) -> str:
+    username = _get_admin_username(request)
     if username != settings.admin_username:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+    return username
+
+
+def _build_csrf_for_request(request: Request) -> str:
+    username = require_admin(request)
+    return build_csrf_token(username)
+
+
+def verify_csrf(request: Request, csrf_token: str) -> None:
+    username = require_admin(request)
+    if not verify_csrf_token(csrf_token, username):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid csrf token")
 
 
 def _safe_json_dumps(data: Any) -> str:
@@ -60,6 +104,28 @@ def _extract_targets(action_json: str) -> list[str]:
         if dec:
             result.append(dec)
     return result
+
+
+def _is_allowed_webhook_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url.strip())
+    except Exception:
+        return False
+    if parsed.scheme != "https":
+        return False
+    if parsed.hostname not in ALLOWED_WEBHOOK_HOSTS:
+        return False
+    return parsed.path.startswith("/cgi-bin/webhook/send")
+
+
+def _parse_and_validate_targets(target_urls: str) -> list[str]:
+    targets = [item.strip() for item in target_urls.splitlines() if item.strip()]
+    if not targets:
+        raise HTTPException(status_code=400, detail="目标地址不能为空")
+    for target in targets:
+        if not _is_allowed_webhook_url(target):
+            raise HTTPException(status_code=400, detail="目标地址必须是企业微信机器人 HTTPS webhook")
+    return targets
 
 
 def _build_forward_payload(signal: Signal) -> dict[str, Any]:
@@ -89,6 +155,8 @@ async def _dispatch_for_signal(session: Session, signal: Signal) -> tuple[list[i
             matched_rule_ids.append(rule.id)
             targets = _extract_targets(rule.action_json)
             for target in targets:
+                if not _is_allowed_webhook_url(target):
+                    continue
                 payload = _build_forward_payload(signal)
                 success = False
                 status_code: Optional[int] = None
@@ -130,13 +198,18 @@ async def inbound_webhook(
     request: Request,
     session: Session = Depends(get_session),
 ):
-    if inbound_token != settings.inbound_token:
+    if not hmac.compare_digest(inbound_token, settings.inbound_token):
         raise HTTPException(status_code=401, detail="invalid token")
 
     try:
-        payload = await request.json()
+        body = await request.body()
+        if len(body) > settings.max_webhook_payload_bytes:
+            raise HTTPException(status_code=413, detail="payload too large")
+        payload = json.loads(body.decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("payload must be object")
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=400, detail="invalid json body")
 
@@ -180,12 +253,14 @@ def admin_login(
         httponly=True,
         secure=settings.app_env == "prod",
         samesite="lax",
+        max_age=settings.admin_session_ttl_seconds,
     )
     return response
 
 
 @app.post("/admin/logout")
-def admin_logout():
+def admin_logout(request: Request, csrf_token: str = Form(...)):
+    verify_csrf(request, csrf_token)
     response = RedirectResponse(url="/admin/login", status_code=303)
     response.delete_cookie("admin_session")
     return response
@@ -200,7 +275,11 @@ def rules_page(request: Request, session: Session = Depends(get_session)):
         action = _load_json(rule.action_json)
         masked_targets = [mask_webhook(decrypt_text(t) or "") for t in action.get("targets", []) if isinstance(t, str)]
         display_rules.append((rule, masked_targets))
-    return templates.TemplateResponse(request, "rules.html", {"rules": display_rules})
+    return templates.TemplateResponse(
+        request,
+        "rules.html",
+        {"rules": display_rules, "csrf_token": _build_csrf_for_request(request)},
+    )
 
 
 @app.get("/admin/rules/new", response_class=HTMLResponse)
@@ -216,6 +295,7 @@ def rules_new_page(request: Request):
             "targets_text": "",
             "condition_type": "contains_field",
             "condition_value": "symbol",
+            "csrf_token": _build_csrf_for_request(request),
         },
     )
 
@@ -230,11 +310,10 @@ def rules_create(
     condition_type: str = Form(...),
     condition_value: str = Form(""),
     target_urls: str = Form(...),
+    csrf_token: str = Form(...),
 ):
-    require_admin(request)
-    targets = [item.strip() for item in target_urls.splitlines() if item.strip()]
-    if not targets:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "目标地址不能为空"})
+    verify_csrf(request, csrf_token)
+    targets = _parse_and_validate_targets(target_urls)
     condition_value = condition_value.strip()
     if condition_type == "always":
         conditions = {"op": "and", "items": [{"type": "always"}]}
@@ -302,6 +381,7 @@ def rules_edit_page(rule_id: int, request: Request, session: Session = Depends(g
             "targets_text": "\n".join(targets),
             "condition_type": condition_type,
             "condition_value": condition_value,
+            "csrf_token": _build_csrf_for_request(request),
         },
     )
 
@@ -317,15 +397,14 @@ def rules_update(
     condition_type: str = Form(...),
     condition_value: str = Form(""),
     target_urls: str = Form(...),
+    csrf_token: str = Form(...),
 ):
-    require_admin(request)
+    verify_csrf(request, csrf_token)
     rule = session.get(Rule, rule_id)
     if not rule:
         raise HTTPException(status_code=404)
 
-    targets = [item.strip() for item in target_urls.splitlines() if item.strip()]
-    if not targets:
-        return JSONResponse(status_code=400, content={"ok": False, "error": "目标地址不能为空"})
+    targets = _parse_and_validate_targets(target_urls)
     condition_value = condition_value.strip()
     if condition_type == "always":
         conditions = {"op": "and", "items": [{"type": "always"}]}
@@ -355,8 +434,13 @@ def rules_update(
 
 
 @app.post("/admin/rules/{rule_id}/toggle")
-def rules_toggle(rule_id: int, request: Request, session: Session = Depends(get_session)):
-    require_admin(request)
+def rules_toggle(
+    rule_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+    csrf_token: str = Form(...),
+):
+    verify_csrf(request, csrf_token)
     rule = session.get(Rule, rule_id)
     if not rule:
         raise HTTPException(status_code=404)
@@ -371,7 +455,11 @@ def rules_toggle(rule_id: int, request: Request, session: Session = Depends(get_
 def signals_page(request: Request, session: Session = Depends(get_session)):
     require_admin(request)
     signals = session.exec(select(Signal).order_by(Signal.id.desc()).limit(200)).all()
-    return templates.TemplateResponse(request, "signals.html", {"signals": signals})
+    return templates.TemplateResponse(
+        request,
+        "signals.html",
+        {"signals": signals, "csrf_token": _build_csrf_for_request(request)},
+    )
 
 
 @app.get("/admin/signals/{signal_id}", response_class=HTMLResponse)
@@ -389,6 +477,7 @@ def signal_detail_page(signal_id: int, request: Request, session: Session = Depe
             "signal": signal,
             "deliveries": deliveries,
             "parsed_fields": _load_json(signal.parsed_fields),
+            "csrf_token": _build_csrf_for_request(request),
         },
     )
 

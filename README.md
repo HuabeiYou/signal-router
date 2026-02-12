@@ -14,16 +14,16 @@ make init
 make dev
 ```
 
-## 3. 写入示例规则（保底转发 + ETF关键词转发）
+## 3. 写入默认规则（仅保底转发）
 
 ```bash
 make seed-demo FALLBACK_WEBHOOK='https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your-fallback-key'
 ```
 
-- 可选覆盖 ETF 规则目标地址：
+- 可选：写入 ETF 示例规则（用于演示）
 
 ```bash
-make seed-demo \
+make seed-example-etf \
   FALLBACK_WEBHOOK='https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your-fallback-key' \
   ETF_WEBHOOK='https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fake-etf-demo-key'
 ```
@@ -62,4 +62,8 @@ make test
 ## 7. 注意
 
 - 生产环境请设置强随机 `INBOUND_TOKEN`、`ADMIN_PASSWORD`、`SESSION_SECRET`
+- 生产环境必须设置 `FERNET_KEY`，否则服务会拒绝启动
+- 管理后台 POST 操作已启用 CSRF 校验
+- 仅允许转发到企业微信官方 webhook 域名（`https://qyapi.weixin.qq.com/cgi-bin/webhook/send`）
+- 默认单条 webhook 最大 256KB，可通过 `MAX_WEBHOOK_PAYLOAD_BYTES` 调整
 - 生产环境通过 HTTPS 暴露服务

@@ -1,4 +1,4 @@
-.PHONY: init dev test seed-demo
+.PHONY: init dev test seed-demo seed-example-etf
 
 init:
 	python3 -m venv .venv
@@ -13,7 +13,14 @@ test:
 
 seed-demo:
 	@if [ -z "$(FALLBACK_WEBHOOK)" ]; then \
-		echo "Usage: make seed-demo FALLBACK_WEBHOOK=<url> [ETF_WEBHOOK=<url>]"; \
+		echo "Usage: make seed-demo FALLBACK_WEBHOOK=<url>"; \
 		exit 1; \
 	fi
-	./scripts/seed_demo_rules.sh "$(FALLBACK_WEBHOOK)" "$(ETF_WEBHOOK)"
+	./scripts/seed_demo_rules.sh "$(FALLBACK_WEBHOOK)"
+
+seed-example-etf:
+	@if [ -z "$(FALLBACK_WEBHOOK)" ]; then \
+		echo "Usage: make seed-example-etf FALLBACK_WEBHOOK=<url> [ETF_WEBHOOK=<url>]"; \
+		exit 1; \
+	fi
+	./scripts/seed_demo_rules.sh "$(FALLBACK_WEBHOOK)" --include-etf-example "$(ETF_WEBHOOK)"

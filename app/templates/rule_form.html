@@ -2,6 +2,7 @@
 {% block content %}
 <h4 class="mb-3">{{ title }}</h4>
 <form method="post" action="{{ form_action }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="mb-3">
     <label class="form-label">规则名称</label>
     <input class="form-control" name="name" value="{{ rule.name if rule else '' }}" required>

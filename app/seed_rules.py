@@ -40,16 +40,21 @@ def upsert_rule(session: Session, name: str, priority: int, conditions: dict, ta
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed MVP default routing rules")
+    parser = argparse.ArgumentParser(description="Seed default routing rules")
     parser.add_argument(
         "--fallback-webhook",
         required=True,
         help="保底群 webhook URL，所有消息都转发到该地址",
     )
     parser.add_argument(
+        "--include-etf-example",
+        action="store_true",
+        help="是否额外写入 ETF 示例规则（默认不写入）",
+    )
+    parser.add_argument(
         "--etf-webhook",
         default="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fake-etf-demo-key",
-        help="ETF动量模型推送命中时转发的 webhook URL",
+        help="ETF 示例规则命中时转发的 webhook URL",
     )
     args = parser.parse_args()
 
@@ -62,21 +67,24 @@ def main() -> None:
             conditions={"op": "and", "items": [{"type": "always"}]},
             target_urls=[args.fallback_webhook],
         )
-        etf_rule = upsert_rule(
-            session=session,
-            name="ETF动量模型推送",
-            priority=900,
-            conditions={
-                "op": "and",
-                "items": [{"type": "contains_text", "text": "ETF动量模型推送"}],
-            },
-            target_urls=[args.etf_webhook],
-        )
         fallback_info = (fallback_rule.id, fallback_rule.name)
-        etf_info = (etf_rule.id, etf_rule.name)
+        etf_info = None
+        if args.include_etf_example:
+            etf_rule = upsert_rule(
+                session=session,
+                name="ETF动量模型推送",
+                priority=900,
+                conditions={
+                    "op": "and",
+                    "items": [{"type": "contains_text", "text": "ETF动量模型推送"}],
+                },
+                target_urls=[args.etf_webhook],
+            )
+            etf_info = (etf_rule.id, etf_rule.name)
 
     print(f"Seeded fallback rule: id={fallback_info[0]}, name={fallback_info[1]}")
-    print(f"Seeded ETF rule: id={etf_info[0]}, name={etf_info[1]}")
+    if etf_info:
+        print(f"Seeded ETF example rule: id={etf_info[0]}, name={etf_info[1]}")
 
 
 if __name__ == "__main__":

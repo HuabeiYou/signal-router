@@ -36,6 +36,7 @@
       <td>
         <a class="btn btn-sm btn-outline-primary" href="/admin/rules/{{ rule.id }}/edit">编辑</a>
         <form class="d-inline" method="post" action="/admin/rules/{{ rule.id }}/toggle">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="btn btn-sm btn-outline-warning" type="submit">切换状态</button>
         </form>
       </td>

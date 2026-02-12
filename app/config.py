@@ -14,6 +14,8 @@ class Settings:
     fernet_key: str = os.getenv("FERNET_KEY", "")
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     session_secret: str = os.getenv("SESSION_SECRET", "change-me-session-secret")
+    admin_session_ttl_seconds: int = int(os.getenv("ADMIN_SESSION_TTL_SECONDS", "28800"))
+    max_webhook_payload_bytes: int = int(os.getenv("MAX_WEBHOOK_PAYLOAD_BYTES", "262144"))
 
 
 settings = Settings()
