@@ -37,7 +37,15 @@
         <a class="btn btn-sm btn-outline-primary" href="/admin/rules/{{ rule.id }}/edit">编辑</a>
         <form class="d-inline" method="post" action="/admin/rules/{{ rule.id }}/toggle">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="btn btn-sm btn-outline-warning" type="submit">切换状态</button>
+          {% if rule.enabled %}
+          <button class="btn btn-sm btn-outline-warning" type="submit">停用</button>
+          {% else %}
+          <button class="btn btn-sm btn-outline-success" type="submit">启用</button>
+          {% endif %}
+        </form>
+        <form class="d-inline" method="post" action="/admin/rules/{{ rule.id }}/delete" onsubmit="return confirm('确认删除该规则？删除后不可恢复。');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-sm btn-outline-danger" type="submit">删除</button>
         </form>
       </td>
     </tr>

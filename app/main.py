@@ -443,6 +443,26 @@ def rules_toggle(
     return RedirectResponse(url="/admin/rules", status_code=303)
 
 
+@app.post("/admin/rules/{rule_id}/delete")
+def rules_delete(
+    rule_id: int,
+    request: Request,
+    session: Session = Depends(get_session),
+    csrf_token: str = Form(...),
+):
+    verify_csrf(request, csrf_token)
+    rule = session.get(Rule, rule_id)
+    if not rule:
+        raise HTTPException(status_code=404)
+
+    deliveries = session.exec(select(Delivery).where(Delivery.rule_id == rule_id)).all()
+    for delivery in deliveries:
+        session.delete(delivery)
+    session.delete(rule)
+    session.commit()
+    return RedirectResponse(url="/admin/rules", status_code=303)
+
+
 @app.get("/admin/signals", response_class=HTMLResponse)
 def signals_page(request: Request, session: Session = Depends(get_session)):
     require_admin(request)
