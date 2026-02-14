@@ -16,16 +16,24 @@
     <label class="form-check-label" for="enabled">启用规则</label>
   </div>
   <div class="mb-3">
-    <label class="form-label">匹配类型</label>
+    <label class="form-label">匹配方式</label>
     <select class="form-select" name="condition_type">
-      <option value="always" {% if condition_type == "always" %}selected{% endif %}>always（所有消息）</option>
-      <option value="contains_text" {% if condition_type == "contains_text" %}selected{% endif %}>contains_text（内容包含关键词）</option>
-      <option value="contains_field" {% if condition_type == "contains_field" %}selected{% endif %}>contains_field（字段存在）</option>
+      <option value="always" {% if condition_type == "always" %}selected{% endif %}>全部消息（无条件命中）</option>
+      <option value="contains_text" {% if condition_type == "contains_text" %}selected{% endif %}>消息内容包含关键词</option>
+      <option value="contains_field" {% if condition_type == "contains_field" %}selected{% endif %}>消息里包含字段名（如 symbol）</option>
     </select>
   </div>
   <div class="mb-3">
-    <label class="form-label">匹配值（always 可留空；contains_text 填关键词；contains_field 填字段名）</label>
-    <input class="form-control" name="condition_value" value="{{ condition_value }}">
+    <label class="form-label">匹配内容</label>
+    <input class="form-control" name="condition_value" value="{{ condition_value }}" placeholder="根据上面的匹配方式填写">
+    <div class="form-text">
+      示例：<br>
+      1) 选择“全部消息（无条件命中）”：此处留空。<br>
+      2) 选择“消息内容包含关键词”：填写 <code>ETF动量模型推送</code>。<br>
+      3) 选择“消息里包含字段名（如 symbol）”：<br>
+      如果消息里有 <code>symbol=501018</code>，就填写 <code>symbol</code>；<br>
+      如果消息里有 <code>side=BUY</code>，就填写 <code>side</code>。
+    </div>
   </div>
   <div class="mb-3">
     <label class="form-label">目标Webhook（每行一个）</label>
