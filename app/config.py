@@ -15,7 +15,8 @@ class Settings:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     session_secret: str = os.getenv("SESSION_SECRET", "change-me-session-secret")
     admin_session_ttl_seconds: int = int(os.getenv("ADMIN_SESSION_TTL_SECONDS", "28800"))
-    max_webhook_payload_bytes: int = int(os.getenv("MAX_WEBHOOK_PAYLOAD_BYTES", "262144"))
+    # WeCom image/file style payloads can be much larger than plain text.
+    max_webhook_payload_bytes: int = int(os.getenv("MAX_WEBHOOK_PAYLOAD_BYTES", "5242880"))
 
 
 settings = Settings()
