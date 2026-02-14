@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import httpx
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
@@ -26,6 +27,7 @@ from app.security import (
 )
 
 app = FastAPI(title="Signal Router")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 DEFAULT_SECRETS = {"change-me-token", "change-me-password", "change-me-session-secret"}
 ALLOWED_WEBHOOK_HOSTS = {"qyapi.weixin.qq.com"}
