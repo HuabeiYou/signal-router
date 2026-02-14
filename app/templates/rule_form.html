@@ -52,7 +52,7 @@
       </label>
       <label class="form-check match-option">
         <input class="form-check-input" type="radio" name="condition_type" value="contains_field" {% if condition_type == "contains_field" %}checked{% endif %}>
-        <span class="form-check-label ms-1">消息里包含字段名（如 symbol）</span>
+        <span class="form-check-label ms-1">消息里包含字段名（如 test）</span>
       </label>
     </div>
   </div>
@@ -89,19 +89,22 @@
     function refreshConditionUI() {
       const t = selectedType();
       if (t === 'always') {
-        group.style.display = 'none';
+        label.textContent = '匹配内容（无需填写）';
+        input.placeholder = '无条件命中，不需要填写';
         input.value = '';
+        input.disabled = true;
+        help.innerHTML = '已选择“全部消息（无条件命中）”，系统会忽略该输入框。';
         return;
       }
-      group.style.display = '';
+      input.disabled = false;
       if (t === 'contains_text') {
         label.textContent = '关键词内容';
-        input.placeholder = '例如：ETF动量模型推送';
-        help.innerHTML = '示例：消息中包含 <code>ETF动量模型推送</code> 时命中。';
+        input.placeholder = '请输入关键词，例如：ETF动量模型推送';
+        help.innerHTML = '请输入你要匹配的关键词。示例：填 <code>ETF动量模型推送</code>，消息里出现这段文字就会命中。';
       } else {
         label.textContent = '字段名称';
-        input.placeholder = '例如：symbol 或 side';
-        help.innerHTML = '示例：消息里有 <code>symbol=501018</code> 时，填写 <code>symbol</code>。';
+        input.placeholder = '请输入字段名称，例如：test';
+        help.innerHTML = '字段名指 <code>=</code> 左边那部分。示例：消息里有 <code>test=abc</code> 就填 <code>test</code>；消息里有 <code>symbol=501018</code> 就填 <code>symbol</code>。';
       }
     }
 
