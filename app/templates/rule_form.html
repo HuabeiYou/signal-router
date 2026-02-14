@@ -1,6 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
 <h4 class="mb-3">{{ title }}</h4>
+<style>
+  .match-option {
+    border: 1px solid #dfe3e8;
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease;
+  }
+  .match-option:hover {
+    border-color: #8cb5ff;
+    background-color: #f7faff;
+  }
+  .match-option input:checked + span {
+    font-weight: 600;
+    color: #0d6efd;
+  }
+  .target-box {
+    border-left: 3px solid #0d6efd;
+    background: #f8fbff;
+    padding: 8px 10px;
+    border-radius: 6px;
+  }
+</style>
 <form method="post" action="{{ form_action }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="mb-3">
@@ -19,37 +42,30 @@
   <div class="mb-3">
     <label class="form-label">匹配方式</label>
     <div class="d-flex flex-column gap-2">
-      <label class="form-check border rounded p-2">
+      <label class="form-check match-option">
         <input class="form-check-input" type="radio" name="condition_type" value="always" {% if condition_type == "always" %}checked{% endif %}>
         <span class="form-check-label ms-1">全部消息（无条件命中）</span>
       </label>
-      <label class="form-check border rounded p-2">
+      <label class="form-check match-option">
         <input class="form-check-input" type="radio" name="condition_type" value="contains_text" {% if condition_type == "contains_text" %}checked{% endif %}>
         <span class="form-check-label ms-1">消息内容包含关键词</span>
       </label>
-      <label class="form-check border rounded p-2">
+      <label class="form-check match-option">
         <input class="form-check-input" type="radio" name="condition_type" value="contains_field" {% if condition_type == "contains_field" %}checked{% endif %}>
         <span class="form-check-label ms-1">消息里包含字段名（如 symbol）</span>
       </label>
     </div>
   </div>
-  <div class="mb-3">
-    <label class="form-label">匹配内容</label>
-    <input class="form-control" name="condition_value" value="{{ condition_value }}" placeholder="根据上面的匹配方式填写">
-    <div class="form-text">
-      示例：<br>
-      1) 选择“全部消息（无条件命中）”：此处留空。<br>
-      2) 选择“消息内容包含关键词”：填写 <code>ETF动量模型推送</code>。<br>
-      3) 选择“消息里包含字段名（如 symbol）”：<br>
-      如果消息里有 <code>symbol=501018</code>，就填写 <code>symbol</code>；<br>
-      如果消息里有 <code>side=BUY</code>，就填写 <code>side</code>。
-    </div>
+  <div class="mb-3" id="conditionValueGroup">
+    <label class="form-label" id="conditionValueLabel">匹配内容</label>
+    <input class="form-control" id="conditionValueInput" name="condition_value" value="{{ condition_value }}" placeholder="根据上面的匹配方式填写">
+    <div class="form-text" id="conditionValueHelp"></div>
   </div>
   <div class="mb-3">
-    <label class="form-label">要发到哪个群（机器人 Webhook 地址）</label>
-    <textarea class="form-control" rows="5" name="target_urls" required>{{ targets_text }}</textarea>
-    <div class="form-text">
-      每行填一个目标群机器人地址。<br>
+    <label class="form-label">要发到哪个群（可填多个）</label>
+    <textarea class="form-control" rows="5" name="target_urls" required placeholder="每行一个机器人地址&#10;https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=groupA&#10;https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=groupB">{{ targets_text }}</textarea>
+    <div class="form-text target-box">
+      一条规则可以发到多个群：每行填写一个机器人 Webhook 地址。<br>
       去企业微信群添加机器人后复制该地址，形如：<br>
       <code>https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxx</code>
     </div>
@@ -57,4 +73,40 @@
   <button class="btn btn-primary" type="submit">保存</button>
   <a class="btn btn-outline-secondary" href="/admin/rules">返回</a>
 </form>
+<script>
+  (function () {
+    const radios = document.querySelectorAll('input[name="condition_type"]');
+    const group = document.getElementById('conditionValueGroup');
+    const label = document.getElementById('conditionValueLabel');
+    const input = document.getElementById('conditionValueInput');
+    const help = document.getElementById('conditionValueHelp');
+
+    function selectedType() {
+      const checked = document.querySelector('input[name="condition_type"]:checked');
+      return checked ? checked.value : 'contains_text';
+    }
+
+    function refreshConditionUI() {
+      const t = selectedType();
+      if (t === 'always') {
+        group.style.display = 'none';
+        input.value = '';
+        return;
+      }
+      group.style.display = '';
+      if (t === 'contains_text') {
+        label.textContent = '关键词内容';
+        input.placeholder = '例如：ETF动量模型推送';
+        help.innerHTML = '示例：消息中包含 <code>ETF动量模型推送</code> 时命中。';
+      } else {
+        label.textContent = '字段名称';
+        input.placeholder = '例如：symbol 或 side';
+        help.innerHTML = '示例：消息里有 <code>symbol=501018</code> 时，填写 <code>symbol</code>。';
+      }
+    }
+
+    radios.forEach((radio) => radio.addEventListener('change', refreshConditionUI));
+    refreshConditionUI();
+  })();
+</script>
 {% endblock %}

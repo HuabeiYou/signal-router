@@ -285,8 +285,8 @@ def rules_new_page(request: Request):
             "form_action": "/admin/rules",
             "rule": None,
             "targets_text": "",
-            "condition_type": "contains_field",
-            "condition_value": "symbol",
+            "condition_type": "contains_text",
+            "condition_value": "",
             "csrf_token": _build_csrf_for_request(request),
         },
     )
