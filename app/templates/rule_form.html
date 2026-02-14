@@ -5,7 +5,8 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <div class="mb-3">
     <label class="form-label">规则名称</label>
-    <input class="form-control" name="name" value="{{ rule.name if rule else '' }}" required>
+    <input class="form-control" name="name" value="{{ rule.name if rule else '' }}" placeholder="例如：ETF推送到策略群" required>
+    <div class="form-text">这是给你自己看的备注名，不会影响匹配和转发结果。</div>
   </div>
   <div class="mb-3">
     <label class="form-label">优先级（越大越先匹配）</label>
@@ -17,11 +18,20 @@
   </div>
   <div class="mb-3">
     <label class="form-label">匹配方式</label>
-    <select class="form-select" name="condition_type">
-      <option value="always" {% if condition_type == "always" %}selected{% endif %}>全部消息（无条件命中）</option>
-      <option value="contains_text" {% if condition_type == "contains_text" %}selected{% endif %}>消息内容包含关键词</option>
-      <option value="contains_field" {% if condition_type == "contains_field" %}selected{% endif %}>消息里包含字段名（如 symbol）</option>
-    </select>
+    <div class="d-flex flex-column gap-2">
+      <label class="form-check border rounded p-2">
+        <input class="form-check-input" type="radio" name="condition_type" value="always" {% if condition_type == "always" %}checked{% endif %}>
+        <span class="form-check-label ms-1">全部消息（无条件命中）</span>
+      </label>
+      <label class="form-check border rounded p-2">
+        <input class="form-check-input" type="radio" name="condition_type" value="contains_text" {% if condition_type == "contains_text" %}checked{% endif %}>
+        <span class="form-check-label ms-1">消息内容包含关键词</span>
+      </label>
+      <label class="form-check border rounded p-2">
+        <input class="form-check-input" type="radio" name="condition_type" value="contains_field" {% if condition_type == "contains_field" %}checked{% endif %}>
+        <span class="form-check-label ms-1">消息里包含字段名（如 symbol）</span>
+      </label>
+    </div>
   </div>
   <div class="mb-3">
     <label class="form-label">匹配内容</label>
@@ -36,8 +46,13 @@
     </div>
   </div>
   <div class="mb-3">
-    <label class="form-label">目标Webhook（每行一个）</label>
+    <label class="form-label">要发到哪个群（机器人 Webhook 地址）</label>
     <textarea class="form-control" rows="5" name="target_urls" required>{{ targets_text }}</textarea>
+    <div class="form-text">
+      每行填一个目标群机器人地址。<br>
+      去企业微信群添加机器人后复制该地址，形如：<br>
+      <code>https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxx</code>
+    </div>
   </div>
   <button class="btn btn-primary" type="submit">保存</button>
   <a class="btn btn-outline-secondary" href="/admin/rules">返回</a>
