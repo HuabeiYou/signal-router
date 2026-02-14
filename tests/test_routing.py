@@ -125,6 +125,8 @@ class RoutingTestCase(unittest.TestCase):
                 sent_urls = {item[0] for item in sent_targets}
                 self.assertIn("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fallback-demo", sent_urls)
                 self.assertIn("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=etf-demo", sent_urls)
+                for _, sent_payload in sent_targets:
+                    self.assertEqual(sent_payload, payload)
 
                 with Session(engine) as session:
                     signals = session.exec(select(Signal)).all()

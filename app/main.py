@@ -129,16 +129,8 @@ def _parse_and_validate_targets(target_urls: str) -> list[str]:
 
 
 def _build_forward_payload(signal: Signal) -> dict[str, Any]:
-    parsed = _load_json(signal.parsed_fields)
-    lines = ["## Signal Routed"]
-    if signal.source:
-        lines.append(f"source={signal.source}")
-    for key, value in parsed.items():
-        lines.append(f"{key}={value}")
-    return {
-        "msgtype": "markdown",
-        "markdown": {"content": "\\n".join(lines)},
-    }
+    payload = _load_json(signal.raw_payload)
+    return payload if payload else {"msgtype": "text", "text": {"content": ""}}
 
 
 async def _dispatch_for_signal(session: Session, signal: Signal) -> tuple[list[int], int]:
